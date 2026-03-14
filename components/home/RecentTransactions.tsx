@@ -1,47 +1,62 @@
 import { ArrowUpCircle, ArrowDownCircle } from "lucide-react";
+import { transactions, categories } from "@prisma/client";
 
-type Transaction = {
-  id: number;
-  type: string;
-  title: string;
-  amount: number;
-  date: string;
+type TransactionWithCategory = transactions & {
+  categories: categories | null;
 };
 
 interface RecentTransactionsProps {
-  transactions: Transaction[];
+  transactions: TransactionWithCategory[];
 }
 
 export function RecentTransactions({ transactions }: RecentTransactionsProps) {
+  if (transactions.length === 0) {
+    return (
+      <section className="mt-8">
+        <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4">Recent Transactions</h3>
+        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-8 text-center text-sm text-slate-500">
+          <p>No recent transactions</p>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="mt-8">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="font-semibold text-lg">รายการล่าสุด</h3>
-        <button className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">ดูทั้งหมด</button>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-bold text-slate-800 dark:text-slate-200">Recent Transactions</h3>
+        <button className="text-xs font-semibold text-primary">See all</button>
       </div>
       
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
-        {transactions.map((tx, index) => (
-          <div 
-            key={tx.id} 
-            className={`flex justify-between items-center p-4 ${index !== transactions.length - 1 ? 'border-b border-zinc-100 dark:border-zinc-800' : ''} hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors`}
-          >
-            <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-2xl ${tx.type === 'income' ? 'bg-green-100/50 text-green-600 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-100/50 text-red-600 dark:bg-red-900/20 dark:text-red-400'}`}>
-                {tx.type === 'income' ? <ArrowDownCircle size={20} /> : <ArrowUpCircle size={20} />}
+      <div className="space-y-4">
+        {transactions.slice(0, 5).map((tx) => {
+          const isIncome = tx.categories?.type === 'INCOME';
+          const amountDisplay = Number(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const categoryName = tx.categories?.name || 'Uncategorized';
+          const titleDisplay = tx.note ? `${categoryName} (${tx.note})` : categoryName;
+          
+          return (
+            <div 
+              key={tx.id} 
+              className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50"
+            >
+              <div className="flex items-center gap-3">
+                <div className={`size-10 rounded-full flex items-center justify-center ${isIncome ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-orange-100 dark:bg-orange-900/30 text-orange-600'}`}>
+                  {isIncome ? <ArrowDownCircle size={20} /> : <ArrowUpCircle size={20} />}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{titleDisplay}</p>
+                  <p className="text-[10px] text-slate-500">
+                    {new Date(tx.transaction_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h4 className="font-medium text-sm">{tx.title}</h4>
-                <p className="text-xs text-zinc-500 mt-0.5">{new Date(tx.date).toLocaleDateString('th-TH', { month: 'short', day: 'numeric' })}</p>
-              </div>
+              <p className={`text-sm font-bold ${isIncome ? 'text-green-600' : 'text-slate-800 dark:text-slate-100'}`}>
+                {isIncome ? '+' : '-'}฿{amountDisplay}
+              </p>
             </div>
-            <div className="text-right">
-              <span className={`font-semibold ${tx.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-zinc-900 dark:text-zinc-100'}`}>
-                {tx.type === 'income' ? '+' : '-'}฿{tx.amount.toLocaleString()}
-              </span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

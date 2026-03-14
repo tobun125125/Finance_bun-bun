@@ -1,11 +1,12 @@
 import React from "react";
 import { createClient } from "@/utils/supabase/server";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Header } from "@/components/home/Header";
 import { BalanceCard } from "@/components/home/BalanceCard";
-import { ActionButtons } from "@/components/home/ActionButtons";
+import { SpendingTrend } from "@/components/home/SpendingTrend";
 import { RecentTransactions } from "@/components/home/RecentTransactions";
+import { BottomNav } from "@/components/home/BottomNav";
+import { getTransactions } from "@/app/actions/transaction";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -17,30 +18,38 @@ export default async function Home() {
   }
 
   const { data: { user } } = await supabase.auth.getUser();
+  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || "User";
   const userInitial = user?.email ? user.email.charAt(0).toUpperCase() : "U";
 
-  // Mock data for UI presentation
-  const transactions = [
-    { id: 1, type: "income", title: "เงินเดือน", amount: 35000, date: "2026-03-01" },
-    { id: 2, type: "expense", title: "ค่าเช่าห้อง", amount: 6500, date: "2026-03-02" },
-    { id: 3, type: "expense", title: "ค่ากิน", amount: 1200, date: "2026-03-03" },
-    { id: 4, type: "expense", title: "ค่าน้ำมัน", amount: 800, date: "2026-03-05" },
-    { id: 5, type: "income", title: "ขายของออนไลน์", amount: 2500, date: "2026-03-10" },
-  ];
+  // Fetch real data from database via server action
+  const transactions = await getTransactions();
 
-  const totalIncome = transactions.filter(t => t.type === "income").reduce((acc, curr) => acc + curr.amount, 0);
-  const totalExpense = transactions.filter(t => t.type === "expense").reduce((acc, curr) => acc + curr.amount, 0);
+  // Calculate totals based on the fetched database transactions
+  let totalIncome = 0;
+  let totalExpense = 0;
+
+  transactions.forEach((t) => {
+    const amountNum = Number(t.amount); // Prisma Decimal to JS Number
+    if (t.categories && t.categories.type === "INCOME") {
+      totalIncome += amountNum;
+    } else if (t.categories && t.categories.type === "EXPENSE") {
+      totalExpense += amountNum;
+    }
+  });
+
   const balance = totalIncome - totalExpense;
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 font-sans pb-20">
-      <Header userInitial={userInitial} />
+    <div className="relative flex min-h-screen w-full flex-col max-w-md mx-auto bg-white dark:bg-background-dark shadow-2xl font-display overflow-hidden">
+      <Header userName={userName} userInitial={userInitial} />
 
-      <main className="max-w-md mx-auto px-4 mt-6">
+      <main className="flex-1 overflow-y-auto px-6 pb-24">
         <BalanceCard balance={balance} totalIncome={totalIncome} totalExpense={totalExpense} />
-        <ActionButtons />
+        <SpendingTrend />
         <RecentTransactions transactions={transactions} />
       </main>
+      
+      <BottomNav />
     </div>
   );
 }
